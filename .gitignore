@@ -1,0 +1,7 @@
+.idea
+.DS_Store
+*.txt
+*.csv
+db/mysql.go
+*.sf
+badger/
