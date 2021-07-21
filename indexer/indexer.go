@@ -12,14 +12,50 @@ import (
 type Indexer struct {
 	StarRating
 	table map[string] *KeywordIndices
+	ids map[string] *SnakeIdIndices
 }
 
 func Init() *Indexer {
 	return &Indexer{
 		StarRating: *GeneStarSys(),
-		table: make(map[string]*KeywordIndices, 10000000),
+		table: make(map[string]*KeywordIndices, 1000),
+		ids: make(map[string]*SnakeIdIndices, 10000000),
 	}
 }
+
+
+func (indexer *Indexer) Keywords() []string {
+	var keywords []string
+	for k := range indexer.ids {
+		keywords = append(keywords, k)
+	}
+	println("keywords", keywords)
+	return keywords
+}
+
+func (indexer *Indexer) AddId(id SnakeId, keyword string) {
+	idIndices, ok := indexer.ids[keyword]
+	if ok {
+		idIndices.Add(id)
+	} else {
+		indices := GenerateIdIndices()
+		indices.Add(id)
+		indexer.ids[keyword] = indices
+	}
+}
+
+func (indexer *Indexer) Ids(keyword string) []int {
+	idIndices, ok := indexer.ids[keyword]
+	if !ok {
+		return nil
+	}
+	var ids []int
+	for _, id := range idIndices.snakeIds {
+		ids = append(ids, id.Id)
+	}
+	return ids
+}
+
 
 func(indexer *Indexer) addDoc(doc *Doc, keyword string, isDynamic bool) {
 	docIndice, ok := indexer.table[keyword]

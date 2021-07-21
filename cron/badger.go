@@ -2,7 +2,6 @@ package cron
 
 import (
 	"os"
-	"snake/store"
 )
 
 func Remove() {
@@ -10,6 +9,6 @@ func Remove() {
 }
 
 func refresh() {
-	store := store.InitBadger("./badger")
+	//store := store.InitBadger("./badger")
 
 }

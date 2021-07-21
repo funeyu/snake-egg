@@ -13,7 +13,7 @@ import (
 var di *dict
 
 func init() {
-	di = load("./jieba/resource/dict.txt.big")
+	di = load("../jieba/resource/dict.txt.big")
 }
 
 type path struct {

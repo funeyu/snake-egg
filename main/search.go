@@ -2,15 +2,14 @@ package main
 
 import (
 	"fmt"
-	"github.com/funeyu/smallfiles"
-	"github.com/jasonlvhit/gocron"
+	"github.com/funeyu/snakedocid"
 	"google.golang.org/grpc"
 	"log"
 	"net"
 	"snake/db/models"
 	"snake/implement"
 	"snake/indexer"
-	"snake/jieba"
+	"snake/smallfiles"
 
 	search "snake/proto"
 
@@ -29,51 +28,83 @@ type Link struct {
 
 type Article struct {
 	Link
-	Lang uint8 `json:"lang"`
-	Id indexer.DocId `json:"id"`
-	Favicon string `json:"favicon"`
+	Id snakedocid.DocId `json:"id"`
 	Title string `json:"title"`
-	KeywordOrDescription string `json:"keyword_or_description"`
+	TimeStamp uint64 `json:"timestamp"`
 }
 
-//type SmallData interface { // 标识存储的最下数据单元，如存取的一条文章信息
-//	Size() uint32
-//	Serialize() []byte
-//}
+type SmallData struct {
+	Article
+	IsFirstData bool
+}
 
-func (a *Article) Serialize() []byte {
+func (d *SmallData) Serialize() []byte {
+	if d.IsFirstData { // 首个数据只存储domain信息
+		domain := d.Article.Domain()
+		str := strings.Join([]string{domain}, "##")
+		return []byte(str)
+	}
+	a := d.Article
 	id := strconv.FormatUint(uint64(a.Id), 10)
 	timestamp := strconv.FormatInt(int64(a.TimeStamp), 10)
-	lang := strconv.FormatUint(uint64(a.Lang), 10)
 	// 每个文章存储在smallfile中的字段如下， 以'##'分隔
-	str := strings.Join([]string{id, a.Text, a.Href ,timestamp,  a.Favicon, a.KeywordOrDescription, lang}, "##")
+	str := strings.Join([]string{id, a.Text, a.Path() ,timestamp}, "##")
 	return []byte(str)
 }
 
-func (a *Article) Size() uint32 {
+func (a *Article) Path() string {
+	href := a.Link.Href
+	domain := util.Domain(href)
+	return strings.Replace(href, domain, "", -1)
+}
+
+func (a *Article) Domain() string {
+	href := a.Link.Href
+	return util.Domain(href)
+}
+
+func (d *SmallData) Size() uint32 {
+	a := d.Article
+	if d.IsFirstData {
+		total := len(a.Domain())
+		return uint32(total)
+	}
+
 	id := strconv.FormatUint(uint64(a.Id), 10)
 	timestamp := strconv.FormatInt(int64(a.TimeStamp), 10)
-	lang := strconv.FormatUint(uint64(a.Lang), 10)
 	// 每个字段string的长度+ '##'的长度
-	total := len(id) + len(a.Text) + len(a.Href) +  len(timestamp) + len(a.KeywordOrDescription) + len(lang)  + 6 * 2
+	total := len(id) + len(a.Text) + len(a.Path()) +  len(timestamp) + 3 * 2
 	return uint32(total)
 }
 
 func ArticleFormat(bytes []byte) smallfiles.SmallData {
 	str := string(bytes)
 	ss := strings.Split(str, "##")
+	if len(ss) < 3 {
+		domain := ss[0]
+		a := Article{
+			Link: Link{Href: domain},
+		}
+		return &SmallData{
+			Article: a,
+			IsFirstData: true,
+		}
+	}
 	id,_ := strconv.ParseUint(ss[0], 10, 64)
 	timeStamp, _ := strconv.ParseUint(ss[3], 10, 64)
-	lang, _ := strconv.ParseUint(ss[5], 10, 64)
 
-	return &Article{
+	a := Article{
 		Link:                 Link{ Text: ss[1], Href:ss[2], TimeStamp: int(timeStamp)},
-		Lang:                 uint8(lang),
-		Id:                   indexer.DocId(id),
+		Id:                   snakedocid.DocId(id),
 		Title:                ss[1],
-		KeywordOrDescription: ss[4],
+		TimeStamp: timeStamp,
+	}
+	return &SmallData{
+		Article: a,
+		IsFirstData: false,
 	}
 }
+
 
 type Handler func(d indexer.Doc)
 
@@ -94,9 +125,8 @@ func iterateBlogs(handle Handler ) {
 				if d == nil {
 					continue
 				}
-				a := d.(*Article)
+				a := d.(*SmallData)
 				a.Text = util.Substring(a.Text, 250)
-				a.KeywordOrDescription = util.Substring(a.KeywordOrDescription, 250)
 
 				if strings.Contains(a.Text, "-color-scheme") {
 					fmt.Println("a.Text", a.Text, a)
@@ -104,15 +134,9 @@ func iterateBlogs(handle Handler ) {
 				id := strconv.FormatUint(uint64(a.Id), 10)
 				d := indexer.Doc{
 					Id:                 id,
-					DocId:              a.Id,
 					Url:                a.Href,
-					Lang:				a.Lang,
 					Title:              a.Text,
 					TimeStamp:          uint32(a.TimeStamp),
-					Favicon:            a.Favicon,
-					TitleOrDescription: a.KeywordOrDescription,
-					Star:               0,
-					IsTop5:             false,
 				}
 				handle(d)
 			}
@@ -121,31 +145,38 @@ func iterateBlogs(handle Handler ) {
 }
 
 func loadData(store store.Store, engine *indexer.Indexer) {
-	iterateBlogs(func(d indexer.Doc) { // 生成一遍索引
-		keys := jieba.Cut(d.Title)
-		engine.AddDocOrderly(&d, keys)
-	})
-	engine.FlushDisk()
+	//iterateBlogs(func(d indexer.Doc) { // 生成一遍索引
+	//	keys := jieba.Cut(d.Title)
+	//	engine.AddDocOrderly(&d, keys)
+	//})
+	//engine.FlushDisk()
+	//
+	//iterateBlogs(func(d indexer.Doc) { // 生成一遍badger文件
+	//	store.Add(d)
+	//})
+	//
+	//engine.FlushDisk()
 
-	iterateBlogs(func(d indexer.Doc) { // 生成一遍badger文件
-		store.Add(d)
+	store.ForEach(func(id int, keyword string) error {
+		engine.AddId(indexer.SnakeId{
+			Id: id,
+		}, keyword)
+		return nil
 	})
-
-	engine.FlushDisk()
 }
 
-func refresh() {
-	store := store.InitBadger("./badger")
+func Refresh() {
+	//store := store.InitBadger("./badger")
+	store := store.InitDBStore()
 	engine := indexer.Init()
 	loadData(store, engine)
 	//engine.LoadFromDisk()
-	ss := &implement.SearchServer{
+	ss := implement.SearchServer{
 		Store:   store,
 		Indexer: engine,
 	}
 
 	starServer := implement.InitStarServer(&engine.StarRating)
-
 	addr := ":50051"
 
 	lis, err := net.Listen("tcp", addr)
@@ -154,13 +185,13 @@ func refresh() {
 	}
 
 	s := grpc.NewServer()
-	search.RegisterSearcherServer(s, ss)
 	search.RegisterStarerServer(s, starServer)
+	search.RegisterSearcherServer(s, &ss)
 	if err := s.Serve(lis); err != nil {
 		log.Fatalln(err)
 	}
 }
 
 func main() {
-	refresh()
+	Refresh()
 }

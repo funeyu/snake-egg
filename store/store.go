@@ -10,5 +10,5 @@ type  Store interface {
 	Prepare() error
 	Commit() error
 	Update(doc indexer.Doc) error
-	ForEach(fn func(docId string, v string)error) error
+	ForEach(fn func(id int, v string)error) error
 }

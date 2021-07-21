@@ -23,6 +23,10 @@ type Doc struct {
 	IsTop5 bool `json:"isTop5"`
 }
 
+type SnakeId struct {
+	Id int `json:"id"`
+}
+
 type DocIndex struct {
 	DocId DocId
 	Keywords []*KeywordIndex
@@ -38,6 +42,22 @@ type KeywordIndex struct {
 type KeywordIndices struct {
 	docIds []DocId
 	//timestampIndex *TimestampIndex  时间排序先去掉
+}
+
+type SnakeIdIndices struct {
+	snakeIds []SnakeId
+}
+
+func GenerateIdIndices() * SnakeIdIndices {
+	return &SnakeIdIndices{
+		snakeIds: make([]SnakeId, 0),
+	}
+}
+
+
+func (indices *SnakeIdIndices) Add(id SnakeId) {
+	indices.snakeIds = append(indices.snakeIds, id)
+	//indices.timestampIndex.Add(doc.DocId, doc.TimeStamp)  // 时间排序先去掉
 }
 
 func GenerateIndices() *KeywordIndices {

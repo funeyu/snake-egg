@@ -14,6 +14,10 @@ type SearchServer struct {
 	Indexer *indexer.Indexer
 }
 
+func (ss *SearchServer) mustEmbedUnimplementedSearcherServer() {
+
+}
+
 func (ss *SearchServer) cutWords(s string)[]string {
 	return jieba.Cut(s)
 }
@@ -99,9 +103,6 @@ func(ss *SearchServer) formatResult(detail *indexer.Doc) *search.Result {
 		Star:                 int32(detail.Star),
 		TimeStamp:            detail.TimeStamp,
 		Description:          detail.TitleOrDescription,
-		XXX_NoUnkeyedLiteral: struct{}{},
-		XXX_unrecognized:     nil,
-		XXX_sizecache:        0,
 	}
 }
 
@@ -150,11 +151,30 @@ func (ss *SearchServer) Details(ctx context.Context, dsReq *search.DetailsReques
 	}
 	return &search.DetailsResponse{
 		Data:                 details,
-		XXX_NoUnkeyedLiteral: struct{}{},
-		XXX_unrecognized:     nil,
-		XXX_sizecache:        0,
 	}, nil
 }
+
+func (ss *SearchServer) SearchKeyword(ctx context.Context, request *search.SearchKeywordRequest) (*search.SearchKeywordResponse, error) {
+	keyword := request.Word
+	println("worddd", keyword)
+	ids := ss.Indexer.Ids(keyword)
+	println("ss.Ids", ids)
+	var idds []int64
+	for _, id := range ids {
+		idds = append(idds, int64(id))
+	}
+	return &search.SearchKeywordResponse{
+		Ids: idds,
+	}, nil
+}
+
+func (ss *SearchServer) Keywords(ctx context.Context, request *search.KeywordsRequest) (*search.KeywordsResponse, error) {
+	keywords := ss.Indexer.Keywords()
+	return &search.KeywordsResponse{
+		Keywords: keywords,
+	}, nil
+}
+
 type  DocInfo struct{
 	docId indexer.DocId `json:"docId"`
 	isTop5 bool `json:"isTop5"`

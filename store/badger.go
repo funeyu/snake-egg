@@ -26,6 +26,7 @@ type Badger struct {
 	path string
 	docStore *badger.DB
 }
+
 func encode(doc indexer.Doc) []byte {
 	buffer := new (bytes.Buffer)
 	error := json.NewEncoder(buffer).Encode(doc)
@@ -92,7 +93,7 @@ func (b *Badger) Commit() error {
 	return err
 }
 
-func (b *Badger) ForEach(fn func(docId string, v string)error) error {
+func (b *Badger) ForEach(fn func(docId uint32, v string)error) error {
 	return nil
 }
 

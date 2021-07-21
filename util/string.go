@@ -3,6 +3,7 @@ package util
 import (
 	"regexp"
 	"strings"
+	"unicode"
 )
 
 func DeleteExtractSpace(s string) string {
@@ -45,4 +46,14 @@ func TrimEmoji(s string) string {
 		}
 	}
 	return ret
+}
+
+func IsChinese(s string) bool {
+	for _, r := range s {
+		if unicode.Is(unicode.Han, r) {
+			return true
+		}
+	}
+
+	return false
 }

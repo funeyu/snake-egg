@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-option go_package = "proto";
+option go_package = "./proto";
 package search;
 
 message SearchRequest {
@@ -8,6 +8,7 @@ message SearchRequest {
   int32 page = 2;
   int32 sort = 3;
 }
+
 message Result {
   string id = 1;
   string title = 2;
@@ -43,8 +44,23 @@ message DetailsResponse {
   repeated Result data = 1;
 }
 
+message SearchKeywordRequest {
+   string word = 1;
+}
+
+message SearchKeywordResponse {
+  repeated int64 ids = 1;
+}
+
+message KeywordsRequest {}
+message KeywordsResponse {
+  repeated string keywords = 1;
+}
+
 service Searcher {
   rpc Search (SearchRequest) returns (SearchResponse) {};
   rpc Details (DetailsRequest) returns (DetailsResponse) {};
   rpc Detail (DetailRequest) returns (DetailResponse) {};
+  rpc SearchKeyword (SearchKeywordRequest) returns (SearchKeywordResponse) {};
+  rpc Keywords(KeywordsRequest) returns (KeywordsResponse) {};
 }
