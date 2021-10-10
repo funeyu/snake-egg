@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/funeyu/snakedocid"
+	"github.com/robfig/cron/v3"
 	"google.golang.org/grpc"
 	"log"
 	"net"
@@ -193,5 +194,8 @@ func Refresh() {
 }
 
 func main() {
-	Refresh()
+	c := cron.New()
+	c.AddFunc("0 0 0 * * *", func() {
+		Refresh()
+	})
 }

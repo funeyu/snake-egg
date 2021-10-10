@@ -9,6 +9,7 @@ require (
 	github.com/golang/protobuf v1.5.2
 	github.com/jinzhu/gorm v1.9.14
 	github.com/nsqio/go-nsq v1.0.8
+	github.com/robfig/cron/v3 v3.0.0 // indirect
 	golang.org/x/text v0.3.2 // indirect
 	google.golang.org/grpc v1.32.0
 	google.golang.org/protobuf v1.27.1
